@@ -104,5 +104,6 @@ There is a project module for Terraform but I opted not to use and just created 
 * Deploy *something* that uses a StatefulSet
 * Have Polarstomps communicate with some hosted GCP service (maybe GCS)
 * Maybe deploy a different application that requests a GPU for its workload
+* A diagram
 
 ---
