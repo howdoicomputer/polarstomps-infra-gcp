@@ -95,6 +95,15 @@ gcloud compute addresses create polarstomps --global
 
 The domain name was purchased and this provisioned the DNS zone within GCP automatically.
 
+### ArgoCD
+
+I bootstrapped ArgoCD manually:
+
+``` sh
+kubectl create namespace argocd
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
+
 ### Project Creation
 
 There is a project module for Terraform but I opted not to use and just created a project manually and specified its ID throughout.
@@ -105,5 +114,6 @@ There is a project module for Terraform but I opted not to use and just created 
 * Have Polarstomps communicate with some hosted GCP service (maybe GCS)
 * Maybe deploy a different application that requests a GPU for its workload
 * A diagram
+* Use Argo Rollouts to setup blue/green deployments.
 
 ---
