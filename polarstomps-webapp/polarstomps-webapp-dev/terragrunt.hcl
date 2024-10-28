@@ -18,6 +18,10 @@ provider "google" {
   region  = "us-west-1"
 }
 
+provider "kubernetes" {
+  config_path = "~/.kube/config"
+}
+
 terraform {
   backend "remote" {
     hostname     = "app.terraform.io"
@@ -36,6 +40,5 @@ include "root" {
 }
 
 inputs = {
-  public_static_ip = "35.244.144.246"
-  dns_zone_name    = "a-bridge-app"
+  env = "dev"
 }

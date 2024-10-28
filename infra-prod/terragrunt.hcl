@@ -1,5 +1,5 @@
 terraform {
-  source = "../modules/environment"
+  source = "github.com/howdoicomputer/tf-polarstomps-gcp-environment?ref=v1"
 
   extra_arguments "common_vars" {
     commands = get_terraform_commands_that_need_vars()
@@ -15,7 +15,7 @@ generate "remote_state" {
   if_exists = "overwrite_terragrunt"
   contents = <<EOF
 provider "google" {
-  region  = "us-west-1"
+  region  = "us-west1"
 }
 
 terraform {
@@ -24,7 +24,7 @@ terraform {
     organization = "polarstomps"
 
     workspaces {
-      name = "infra-dev"
+      name = "infra-prod"
     }
   }
 }
@@ -36,8 +36,8 @@ include "root" {
 }
 
 inputs = {
-  env                 = "dev"
-  public_subnet_cidr  = "10.10.40.0/26"
-  private_subnet_cidr = "10.10.50.0/26"
-  control_plane_cidr  = "10.10.60.0/28"
+  env                 = "prod"
+  public_subnet_cidr  = "10.10.10.0/26"
+  private_subnet_cidr = "10.10.20.0/26"
+  control_plane_cidr  = "10.10.30.0/28"
 }

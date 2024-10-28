@@ -1,5 +1,5 @@
 terraform {
-  source = "../modules/polarstomps-webapp"
+  source = "../../modules/polarstomps-webapp"
 
   extra_arguments "common_vars" {
     commands = get_terraform_commands_that_need_vars()
@@ -14,7 +14,33 @@ include "root" {
   path = find_in_parent_folders()
 }
 
+generate "remote_state" {
+  path      = "backend.tf"
+  if_exists = "overwrite_terragrunt"
+  contents = <<EOF
+provider "google" {
+  region  = "us-central1"
+}
+
+provider "kubernetes" {
+  config_path = "~/.kube/config"
+}
+
+terraform {
+  backend "remote" {
+    hostname     = "app.terraform.io"
+    organization = "polarstomps"
+
+    workspaces {
+      name = "polarstomps-webapp-prod"
+    }
+  }
+}
+EOF
+}
+
 inputs = {
-  public_static_ip = "CHANGE_ME"
-  dns_zone_name    = "CHANGE_ME"
+  env                  = "prod"
+  region               = "us-central1"
+  associate_dns_record = true
 }

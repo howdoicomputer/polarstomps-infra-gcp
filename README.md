@@ -1,30 +1,46 @@
 # About
 
-This Terraform/Terragrunt repository contains the infrastructure-as-code necessary to build out a very simple, reference GCP architecture with a VPC-per-environment approach with a GKE cluster in each environment to serve applications.
+This Terraform/Terragrunt repository contains the infrastructure-as-code necessary to build out a very simple, reference GCP architecture that supports a rudimentary web application.
 
 ## Modules
 
-There are two Terraform modules in the `modules` directory:
+There are two modules that underpin everything.
 
-* environment
-* polarstomps-webapp
+### Environment Terraform Module
 
-### environment
+The environment module exists here in its own repository: https://github.com/howdoicomputer/tf-polarstomps-gcp-environment
 
-The environment module will deploy a collection of resources that logically constitute an opinionated "environment". That is,
+The responsibility of the module is to create the base layer of infrastructure that constitutes a logical environment.
 
-1. A VPC that has one public subnet and one private subnet. The public subnet is where publically routable infrastructure goes (load balancers, for example). The private subnet is mostly where Kubernetes worker nodes live.
-2. An egress route so that internal services can talk to the Internet.
-3. Firewall rules so that my home IP address can SSH into the public subnet.
-4. A cloud router.
-5. A router NAT.
-6. A GKE autopilot cluster with a private worker node pool and a public control plane endpoint that is locked down to my home IP address.
+This includes:
 
-### polarstomps-webapp
+* A VPC with a public and private subnet
+* A VPC route that allows egress to the Internet
+* Firewall rules to enable ingress from a "home" IP address
+* A [Cloud Router](https://cloud.google.com/network-connectivity/docs/router/concepts/overview) and a [Cloud Nat](https://cloud.google.com/nat/docs/overview) in order to enable routing to a private GKE cluster
+* A GKE/Kubernetes autopilot cluster that has private nodes and a public control plane endpoint (that is locked down to that same "home" IP address)
+* And a polarstomps-webapp that lives in the `modules/` directory
 
-The polarstomps-webapp module encapsulates all ancillary infrastructure for the web application. For example, it handles the generation of the SSL certificate for the `a-bridge.app` as well as the creation of the A record.
+The network layout that the environment module creates looks a little like this:
 
-The creation of GCP resources is split between Terraform and the Kubernetes manifests that deploy the app.
+![image](images/environment_basic.png)
+
+### Polarstomps Webapp Terraform Module
+
+Any infrastructure ancillary to the web application itself is separated out into its own module.
+
+This includes:
+
+* An external IPv4 address
+* An A record within the a-bridge.app. DNS zone that the IPv4 address is associated with
+* A Redis instance
+* A k8s configmap with the Redis instance connection details
+* A k8s secret that contains the Redis instance auth string
+* The polarstomps k8s namespace (ArgoCD references this laster on)
+
+The architectural layout for Polarstomps looks like this:
+
+![image](images/a_bridge_diagram.png)
 
 # Getting started
 
@@ -35,12 +51,39 @@ The creation of GCP resources is split between Terraform and the Kubernetes mani
 * ArgoCD CLI
 * kubectl
 * gcloud CLI
+* A GCP account with a project pre-provisioned
+* A Terraform cloud account with workspaces setup for each environment and webapp environment pairing
 
 ### Account Dependencies
 
 This repo requires a GCP account to target and assumes that you have one. You'll need to create a `polarstomps` project and put its project ID in `root.tfvars`.
 
-This repo also uses Terraform Cloud. This part is a bit trickier as the Terraform Cloud backend configuration exists in each `terragrunt.hcl` file and you'll need to edit those to point to your Terraform Cloud configuration (project and workspaces).
+This repo also uses Terraform Cloud. This part is a bit trickier to setup as the Terraform Cloud backend configuration exists in each `terragrunt.hcl` file and you'll need to edit those to point to your Terraform Cloud configuration (project and workspaces).
+
+Example:
+
+``` terraform
+generate "remote_state" {
+  path      = "backend.tf"
+  if_exists = "overwrite_terragrunt"
+  contents = <<EOF
+provider "google" {
+  region  = "us-west1"
+}
+
+terraform {
+  backend "remote" {
+    hostname     = "app.terraform.io"
+    organization = "polarstomps" <- change
+
+    workspaces {
+      name = "infra-prod" <- change
+    }
+  }
+}
+EOF
+}
+```
 
 ### Access
 
@@ -50,70 +93,66 @@ You'll need to put yours into `root.tfvars` if you want to access anything.
 
 ### Domain
 
-The domain for this app was purchased manually through Google (which provisioned the zone automatically). You'll need to purchase your own domain and plug it into the
+The domain for this app was purchased manually through Google (which provisioned the DNS zone automatically). You'll need to purchase your own domain and plug it into the
 Polarstomps values file.
 
-## Deploying
+Polarstomps is currently masquerading as an application called `a-bridge.app`.
 
-Once you have everything setup, you can deploy.
+## Deploying Environments
 
-To deploy the VPC and k8s cluster:
+Environments are separated out into their own directories. To deploy a specific environemnt, cd into it and run `terragrunt init` followed by `terragrunt apply`.
+
+To deploy the base environment:
 
 ``` sh
 cd infra-dev/
 terragrunt init
-terragrunt deploy
+terragrunt apply
 ```
 
-To deploy the A record for Polarstomps:
+### Deploying ArgoCD
+
+Since ArgoCD is used for deployments we need to actually set the thing up.
+
+There is a Makefile in every environment directory that has some convenient directives to run:
+
+```
+cd infra-dev/
+
+# Generate ~/.kube/config for deployed cluster
+#
+make auth-gke
+
+# Deploy ArgoCD
+#
+make bootstrap-argo
+```
+
+## Deploying Webapp Infrastructure
+
+In order to deploy the infrastructure for the web application after the environment has been created then cd into the webapp directory that matches the environment and run the following:
 
 ``` sh
 cd polarstomps-webapp/polarstomps-webapp-dev
 terragrunt init
-terragrunt deploy
+terragrunt apply
 ```
 
 ### Deploying Polarstomps
 
-Polarstomps is deployed using ArgoCD/k8s manifests [here](https://github.com/howdoicomputer/polarstomps-argo-gcp).
+The manifests for deploying Polarstomps is [here](https://github.com/howdoicomputer/polarstomps-argo-gcp).
 
-ArgoCD will then pull down that repo and try its best to sync state for the cluster. Part of GKE's offering is that it'll automatically provision a load balancer and route traffic from the spawned pods through it. GKE will also use an ingress annotation to provision a managed certificate for the domain.
+The application manifests use a branch based approach for deploying to specific environemnts. That is:
 
-### Manual Work
+The dev branch matches to the dev environment.
+The prod branch matches to the prod environment.
 
-There was some manual work involved:
-
-### Static IP
-
-Creating the static IP address:
+So to deploy Polarstomps itself:
 
 ``` sh
-gcloud compute addresses create polarstomps --global
+git clone https://github.com/howdoicomputer/polarstomps-argo-gcp
+cd polarstomps-argo-gcp
+make deploy
+make sync
 ```
-
-### Domain Name
-
-The domain name was purchased and this provisioned the DNS zone within GCP automatically.
-
-### ArgoCD
-
-I bootstrapped ArgoCD manually:
-
-``` sh
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-```
-
-### Project Creation
-
-There is a project module for Terraform but I opted not to use and just created a project manually and specified its ID throughout.
-
-# TODO
-
-* Deploy *something* that uses a StatefulSet
-* Have Polarstomps communicate with some hosted GCP service (maybe GCS)
-* Maybe deploy a different application that requests a GPU for its workload
-* A diagram
-* Use Argo Rollouts to setup blue/green deployments.
-
 ---
