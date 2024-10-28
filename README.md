@@ -149,11 +149,12 @@ The application manifests use a branch based approach for deploying to specific 
 The dev branch matches to the dev environment.
 The prod branch matches to the prod environment.
 
-So to deploy Polarstomps itself:
+So to deploy the production version Polarstomps:
 
 ``` sh
 git clone https://github.com/howdoicomputer/polarstomps-argo-gcp
 cd polarstomps-argo-gcp
+git checkout prod
 make deploy
 make sync
 ```
