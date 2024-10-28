@@ -10,7 +10,7 @@ There are two modules that underpin everything.
 
 The environment module exists here in its own repository: https://github.com/howdoicomputer/tf-polarstomps-gcp-environment
 
-The responsibility of the module is to create the base layer of infrastructure that constitutes a logical environment.
+The responsibility of this module is to create the base layer of infrastructure that constitutes a logical environment.
 
 This includes:
 
@@ -33,7 +33,7 @@ This includes:
 
 * An external IPv4 address
 * An A record within the a-bridge.app. DNS zone that the IPv4 address is associated with
-* A Redis instance
+* A hosted Memorystore Redis instance
 * A k8s configmap with the Redis instance connection details
 * A k8s secret that contains the Redis instance auth string
 * The polarstomps k8s namespace (ArgoCD references this laster on)
@@ -56,7 +56,7 @@ The architectural layout for Polarstomps looks like this:
 
 ### Account Dependencies
 
-This repo requires a GCP account to target and assumes that you have one. You'll need to create a `polarstomps` project and put its project ID in `root.tfvars`.
+This repo requires a GCP account to target and assumes that you have one. You'll need to create a `polarstomps` project and then put its project ID in `root.tfvars`.
 
 This repo also uses Terraform Cloud. This part is a bit trickier to setup as the Terraform Cloud backend configuration exists in each `terragrunt.hcl` file and you'll need to edit those to point to your Terraform Cloud configuration (project and workspaces).
 
@@ -93,8 +93,10 @@ You'll need to put yours into `root.tfvars` if you want to access anything.
 
 ### Domain
 
-The domain for this app was purchased manually through Google (which provisioned the DNS zone automatically). You'll need to purchase your own domain and plug it into the
-Polarstomps values file.
+The domain for this app was purchased manually through Google (which provisioned the DNS zone automatically). You'll need to purchase your own domain and plug it into two places:
+
+* The certificates manifest for Polarstomps (so that it can generate a cert for the domain)
+* You'll also need to change the `dns_zone_name` in a webapp environment pairing terragrunt configuration file
 
 Polarstomps is currently masquerading as an application called `a-bridge.app`.
 
@@ -155,4 +157,15 @@ cd polarstomps-argo-gcp
 make deploy
 make sync
 ```
+
+## Logging and Metrics
+
+Polarstomps manifests creates two separate NodePorts (:8080 and :9090). The Polarstomps application itself serves external routes on :8080 and internal routes on :9090 (/metrics and /healthz). The :8080 port is used by the ingress and the :9090 port is hidden from the world and used by the PodMonitoring resource.
+
+The healthpoint endpoint is used for healthchecks to confirm that pods are healthy before they are put behind a loadbalancer.
+
+The metrics endpoint serves Prometheus metrics.
+
+Logs coming out of Polarstomps are *structured* (using the `log/slog`).
+
 ---

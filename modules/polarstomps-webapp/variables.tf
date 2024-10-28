@@ -1,6 +1,5 @@
 variable "dns_zone_name" {
-  type    = string
-  default = "a-bridge-app"
+  type = string
 }
 
 variable "project_id" {

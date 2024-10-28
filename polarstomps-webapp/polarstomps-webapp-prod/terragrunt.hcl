@@ -43,4 +43,5 @@ inputs = {
   env                  = "prod"
   region               = "us-central1"
   associate_dns_record = true
+  dns_zone_name        = "a-bridge-app"
 }
