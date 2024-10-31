@@ -58,6 +58,9 @@ data "terraform_remote_state" "vpc" {
   }
 }
 
+# Let's create a simple and small Redis instance to help demonstrate writing to
+# a 'database' from the webapp.
+#
 module "redis" {
   source  = "terraform-google-modules/memorystore/google"
   version = "~> 11.0"
@@ -153,7 +156,7 @@ data "google_project" "polarstomps" {
   project_id = var.project_id
 }
 
-# Finally, let's give the service account the permissions to read our bucket objects
+# Finally, let's attach an objectViewer role to the principal identifier generated for the Kubernetes service account
 #
 module "storage_iam_bindings" {
   source  = "terraform-google-modules/iam/google//modules/storage_buckets_iam"
