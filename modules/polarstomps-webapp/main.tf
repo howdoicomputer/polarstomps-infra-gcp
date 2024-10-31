@@ -117,38 +117,54 @@ resource "kubernetes_secret" "redis_auth" {
   ]
 }
 
-# NOTE: The below IAM serviceaccount and role binding are NOT used
-# this is because setting up IAM auth for Redis is a pain and will be
-# done later. This is just to demo a role binding.
+# I want to test communicating with GCS using GKE Workload Identity and
+# bound service accounts as an auth mechanism.
 #
-# Create a service account for Polarstomps.
-#
-resource "google_service_account" "polarstomps" {
-  project      = var.project_id
-  account_id   = "infra-${var.env}-polarstomps"
-  display_name = "infra-${var.env}-polarstomps"
+resource "google_storage_bucket" "example" {
+  name                     = "infra-${var.env}-example"
+  location                 = "US-WEST1"
+  force_destroy            = true
+  project                  = var.project_id
+  public_access_prevention = "enforced"
 }
 
-# Then subsequently bind a dbConnectionUser role to it so that
-# it can connect to the redis instance.
+# Then let's give it a fake file as a fixture.
 #
-module "projects_iam_bindings" {
-  source  = "terraform-google-modules/iam/google//modules/projects_iam"
+resource "google_storage_bucket_object" "text_file" {
+  name    = "foobar.txt"
+  content = "Hello!"
+  bucket  = google_storage_bucket.example.name
+}
+
+# Workload identity requires a service account to bind to
+#
+resource "kubernetes_service_account" "polarstomps" {
+  metadata {
+    name      = "polarstomps"
+    namespace = "polarstomps"
+  }
+
+  depends_on = [
+    kubernetes_namespace.polarstomps
+  ]
+}
+
+data "google_project" "polarstomps" {
+  project_id = var.project_id
+}
+
+# Finally, let's give the service account the permissions to read our bucket objects
+#
+module "storage_iam_bindings" {
+  source  = "terraform-google-modules/iam/google//modules/storage_buckets_iam"
   version = "~> 8.0"
 
-  projects = [var.project_id]
+  storage_buckets = [google_storage_bucket.example.name]
+  mode            = "authoritative"
 
-  # The authoritative mode will overwrite any existing bindings.
-  #
-  mode = "authoritative"
-
-  conditional_bindings = [
-    {
-      role        = "roles/redis.dbConnectionUser"
-      title       = "${local.redis_name}-conn"
-      description = "Connection accesss to Polarstomps ${var.env} redis instance."
-      expression  = "resource.name == '${local.redis_full_name}'"
-      members     = ["serviceAccount:${google_service_account.polarstomps.email}"]
-    }
-  ]
+  bindings = {
+    "roles/storage.objectViewer" = [
+      "principal://iam.googleapis.com/projects/${data.google_project.polarstomps.number}/locations/global/workloadIdentityPools/${var.project_id}.svc.id.goog/subject/ns/polarstomps/sa/polarstomps"
+    ]
+  }
 }
