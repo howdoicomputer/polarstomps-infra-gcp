@@ -32,7 +32,7 @@ Any infrastructure ancillary to the web application itself is separated out into
 This includes:
 
 * An external IPv4 address
-* An A record within the a-bridge.app. DNS zone that the IPv4 address is associated with
+* An A record within the polarstomps zone.
 * A hosted Memorystore Redis instance
 * A k8s configmap with the Redis instance connection details
 * A k8s secret that contains the Redis instance auth string
@@ -43,7 +43,7 @@ This includes:
 
 The architectural layout for Polarstomps looks like this:
 
-![image](images/a_bridge_diagram.png)
+![image](images/polarstomps_request_flow.png)
 
 # Getting started
 
@@ -100,8 +100,6 @@ The domain for this app was purchased manually through Google (which provisioned
 
 * The certificates manifest for Polarstomps (so that it can generate a cert for the domain)
 * You'll also need to change the `dns_zone_name` in a webapp environment pairing terragrunt configuration file
-
-Polarstomps is currently masquerading as an application called `a-bridge.app`.
 
 ## Deploying Environments
 
