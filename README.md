@@ -36,7 +36,7 @@ This includes:
 * A hosted Memorystore Redis instance
 * A k8s configmap with the Redis instance connection details
 * A k8s secret that contains the Redis instance auth string
-* The polarstomps k8s namespace (ArgoCD references this laster on)
+* The polarstomps k8s namespace (ArgoCD references this later on)
 * A GCS bucket with a dummy file (`foobar.txt`)
 * A policy bound to the GCS bucket that allows a k8s service account to access it through GKE workload identity federation
 * A k8s service account
