@@ -143,7 +143,7 @@ terragrunt apply
 
 ### Deploying Polarstomps
 
-The manifests for deploying Polarstomps is [here](https://github.com/howdoicomputer/polarstomps-argo-gcp).
+The manifests for deploying Polarstomps are [here](https://github.com/howdoicomputer/polarstomps-argo-gcp).
 
 The application manifests use a branch based approach for deploying to specific environemnts. That is:
 
